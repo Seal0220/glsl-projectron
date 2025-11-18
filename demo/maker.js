@@ -28,7 +28,7 @@ img.src = './img/chen.jpg'
 function setMainImage(img) {
     generations = 0
     mainImage = img
-    proj.setTargetImage(img)
+    proj.setTargetImages(mainImage, sideImage)
 }
 
 console.log('GLSL-Projectron  ver ' + proj.version)
@@ -164,9 +164,9 @@ function resetProject() {
     proj.setAdjustAmount(parseFloat($('adjust').value) || 0.5)
     proj.setFewerPolyTolerance(parseFloat($('preferFewer').value) || 0)
 
-    // 用「主視圖」再次當作 target，從零開始逼近
+    // 用「主視圖」再次當作 target，從零開始逼近，若有側視圖也一起套用
     if (mainImage) {
-        proj.setTargetImage(mainImage)
+        proj.setTargetImages(mainImage, sideImage)
     }
 
     // UI 顯示歸零
@@ -293,15 +293,13 @@ window.addEventListener('load', function () {
         })
     }
 
-    // 側視圖：第二張圖片（目前先存成 sideImage，之後可用於多視角優化）
+    // 側視圖：第二張圖片（加入 90 度側視角比對）
     var fileInput2 = $('imageInput2')
     var uploadBtn2 = $('uploadTrigger2')
 
     function setSideImage(img) {
         sideImage = img
-        // 目前只紀錄起來，之後你在 Projectron 核心裡用來做第二視角的 target
-        // 例如未來可以呼叫 proj.setTargetImages(mainImage, sideImage)
-        // 或在 GPU 比分時同時計算兩個投影誤差
+        if (mainImage) proj.setTargetImages(mainImage, sideImage)
     }
 
     if (fileInput2 && uploadBtn2) {

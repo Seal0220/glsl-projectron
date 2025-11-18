@@ -44,8 +44,10 @@ export function Projectron(canvas, size) {
 	var perspective = 0.2
 	var fewerPolysTolerance = 0.001
 	var fboSize = Math.max(32, powerOfTwoSize)
-	var tgtTexture = null
-	var currentScore = -100
+        var tgtTextures = []
+        var targetViews = []
+        var sideViewRotation = Math.PI / 2
+        var currentScore = -100
 
 
 
@@ -56,7 +58,8 @@ export function Projectron(canvas, size) {
 	 * 
 	*/
 
-	this.setTargetImage = setTargetImage
+        this.setTargetImage = setTargetImage
+        this.setTargetImages = setTargetImages
 	this.setAlphaRange = (a, b) => polys.setAlphaRange(+a, +b)
 	this.setAdjustAmount = (n) => polys.setAdjust(+n)
 	this.setFewerPolyTolerance = (n) => { fewerPolysTolerance = n || 0 }
@@ -102,9 +105,8 @@ export function Projectron(canvas, size) {
 
 
 	// TODO: generalize?
-	var referenceFB = createFBO(gl, [fboSize, fboSize], { color: 1 })
-	referenceFB.drawn = false
-	var scratchFB = createFBO(gl, [fboSize, fboSize], { color: 1 })
+        var referenceFBs = [createFBO(gl, [fboSize, fboSize], { color: 1 })]
+        var scratchFB = createFBO(gl, [fboSize, fboSize], { color: 1 })
 	var reducedFBs = []
 	var reducedSize = fboSize / 4
 	while (reducedSize >= 16) {
@@ -153,7 +155,7 @@ export function Projectron(canvas, size) {
 
 
 	this.runGeneration = function () {
-		if (!tgtTexture) return
+                if (!targetViews.length) return
 
 		polys.cacheDataNow()
 		var vertCount = polys.getNumVerts()
@@ -164,8 +166,7 @@ export function Projectron(canvas, size) {
 		colBuffer.update(polys.getColorArray())
 		polyBuffersOutdated = false
 
-		drawData(scratchFB, perspective, null)
-		var score = compareFBOs(referenceFB, scratchFB)
+                var score = scoreCurrentModel()
 		var keep = (score > currentScore)
 
 		// prefer to remove polys even if score drop is within tolerance
@@ -216,14 +217,29 @@ export function Projectron(canvas, size) {
 	*/
 
 
-	function setTargetImage(image) {
-		prerender()
-		tgtTexture = createTexture(gl, image)
-		drawFlat(tgtTexture, referenceFB, true)
-		// run a comparison so as to have a correct score
-		drawData(scratchFB, perspective, null)
-		currentScore = compareFBOs(referenceFB, scratchFB)
-	}
+        function setTargetImage(image) {
+                setTargetImages(image)
+        }
+
+        function setTargetImages(frontImage, sideImage) {
+                prerender()
+                tgtTextures = []
+                targetViews = []
+
+                var addTarget = (img, yawRotation) => {
+                        var tex = createTexture(gl, img)
+                        var refIndex = targetViews.length
+                        ensureReferenceFbo(refIndex)
+                        drawFlat(tex, referenceFBs[refIndex], true)
+                        tgtTextures.push(tex)
+                        targetViews.push({ texture: tex, yaw: yawRotation || 0 })
+                }
+
+                if (frontImage) addTarget(frontImage, 0)
+                if (sideImage) addTarget(sideImage, sideViewRotation)
+
+                currentScore = (targetViews.length) ? scoreCurrentModel() : -100
+        }
 
 
 	function prerender() {
@@ -251,15 +267,15 @@ export function Projectron(canvas, size) {
 	}
 
 
-	function paintReference() {
-		if (!tgtTexture) return
-		drawFlat(referenceFB.color[0], null, false)
-	}
+        function paintReference() {
+                if (!targetViews.length) return
+                drawFlat(referenceFBs[0].color[0], null, false)
+        }
 
-	function paintScratchBuffer() {
-		if (!tgtTexture) return
-		drawFlat(scratchFB.color[0], null, false)
-	}
+        function paintScratchBuffer() {
+                if (!targetViews.length) return
+                drawFlat(scratchFB.color[0], null, false)
+        }
 
 
 
@@ -281,7 +297,7 @@ export function Projectron(canvas, size) {
 		)
 	}
 
-	function drawGeneral(target, shader, vao, numVs, uniNames, uniVals) {
+        function drawGeneral(target, shader, vao, numVs, uniNames, uniVals) {
 
 		if (target) {
 			// target is an FBO - need to clear it with alpha, then draw without
@@ -307,9 +323,31 @@ export function Projectron(canvas, size) {
 			}
 		}
 		vao.bind()
-		vao.draw(gl.TRIANGLES, numVs)
-		vao.unbind()
-	}
+                vao.draw(gl.TRIANGLES, numVs)
+                vao.unbind()
+        }
+
+
+        function ensureReferenceFbo(index) {
+                while (referenceFBs.length <= index) {
+                        referenceFBs.push(createFBO(gl, [fboSize, fboSize], { color: 1 }))
+                }
+                return referenceFBs[index]
+        }
+
+
+        function scoreCurrentModel() {
+                if (!targetViews.length) return -100
+                var total = 0
+                for (var i = 0; i < targetViews.length; i++) {
+                        var view = targetViews[i]
+                        var mat = mat4.create()
+                        if (view.yaw) mat4.rotateY(mat, mat, view.yaw)
+                        drawData(scratchFB, perspective, mat)
+                        total += compareFBOs(referenceFBs[i], scratchFB)
+                }
+                return total / targetViews.length
+        }
 
 
 
@@ -438,11 +476,9 @@ export function Projectron(canvas, size) {
 			polys.setArrays(v, c)
 			vertBuffer.update(polys.getVertArray())
 			colBuffer.update(polys.getColorArray())
-			if (tgtTexture) {
-				// run a comparison so as to have a correct score
-				drawData(scratchFB, perspective, null)
-				currentScore = compareFBOs(referenceFB, scratchFB)
-			}
+                        if (targetViews.length) {
+                                currentScore = scoreCurrentModel()
+                        }
 			return true
 		} else {
 			console.warn('Import failed: unbalanced counts, verts=' +

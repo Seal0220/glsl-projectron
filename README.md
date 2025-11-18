@@ -40,6 +40,9 @@ img.src = 'path/to/image.png'
 //..
 proj.runGeneration()    // many times..
 proj.draw(x,y)          // once per frame..
+
+// optional: fit two target views at once (front + 90° right side)
+// proj.setTargetImages(frontImg, sideImg)
 ```
 
 ## Known issues:
