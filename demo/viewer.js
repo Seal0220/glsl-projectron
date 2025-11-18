@@ -13,16 +13,35 @@ import { Projectron } from '../src'
 
 
 var canvas = document.getElementById('view')
+var status = document.getElementById('viewerStatus')
+var dataInput = document.getElementById('dataInput')
+var loadButton = document.getElementById('loadData')
 var proj = new Projectron(canvas)
 
 // set the canvas size to its displayed size
 canvas.width = canvas.clientWidth
 canvas.height = canvas.clientHeight
 
+var loadData = data => {
+    var trimmed = (data || '').trim()
+    if (!trimmed) {
+        if (status) status.textContent = '請貼上從 maker 匯出的資料再載入'
+        return
+    }
+    proj.importData(trimmed)
+    if (dataInput && !dataInput.value.trim()) dataInput.value = trimmed
+    if (status) status.textContent = '已載入資料，可拖曳旋轉檢視'
+    drawNeeded = true
+}
+
 document.body.onload = () => {
     var data = document.getElementById('viewData').textContent
-    proj.importData(data)
+    loadData(data)
     requestAnimationFrame(render)
+}
+
+if (loadButton && dataInput) {
+    loadButton.addEventListener('click', () => loadData(dataInput.value))
 }
 
 
