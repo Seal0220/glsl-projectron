@@ -2,10 +2,8 @@ import { Projectron } from '../src'
 var $ = s => document.getElementById(s)
 
 /*
- * 
- *      init projectron
- * 
-*/
+ * init projectron
+ */
 
 var size = 256
 var s = parseInt(new URLSearchParams(location.search).get('size'))
@@ -14,30 +12,61 @@ if (s > 8) size = s
 var canvas = $('view')
 var proj = new Projectron(canvas, size)
 
-// 主視圖 / 側視圖
-var mainImage = null
-var sideImage = null
+// 給 index.html 內 inline script 使用（顯示側視圖參考用）
+window.p = proj
 
-var img = new Image()
-img.onload = () => { setMainImage(img) }
-img.src = './img/chen.jpg'
+var mainImage = null   // 主視圖影像
+var sideImage = null   // 側視圖影像（右 +90° 用）
 
-// img.src = './img/lena.png'
-// img.src = './img/teapot512.png'
+// ==== 預設圖片路徑（在這裡改檔名即可） ====
+var mainDefaultSrc = './img/1.png' // 主視圖預設圖
+var sideDefaultSrc = './img/TS.jpg' // 側視圖預設圖
+// =======================================
 
-function setMainImage(img) {
+// 預設主視圖
+if (mainDefaultSrc) {
+    var imgMain = new Image()
+    imgMain.onload = () => { setMainImage(imgMain) }
+    imgMain.onerror = () => {
+        console.warn('主視圖預設圖片載入失敗：', mainDefaultSrc)
+    }
+    imgMain.src = mainDefaultSrc
+}
+
+// 預設側視圖
+if (sideDefaultSrc) {
+    var imgSide = new Image()
+    imgSide.onload = () => { setSideImage(imgSide) }
+    imgSide.onerror = () => {
+        console.warn('側視圖預設圖片載入失敗：', sideDefaultSrc)
+    }
+    imgSide.src = sideDefaultSrc
+}
+
+// 設定主視圖 target
+function setMainImage(imgObj) {
     generations = 0
-    mainImage = img
-    proj.setTargetImage(img)
+    mainImage = imgObj
+    proj.setTargetImage(imgObj)
+
+    var thumb = $('thumbMain')
+    if (thumb) thumb.src = imgObj.src
+}
+
+// 設定側視圖 target（會啟用雙視角幾何平均）
+function setSideImage(imgObj) {
+    sideImage = imgObj
+    proj.setTargetImage2(imgObj)
+
+    var thumb = $('thumbSide')
+    if (thumb) thumb.src = imgObj.src
 }
 
 console.log('GLSL-Projectron  ver ' + proj.version)
 
 /*
- * 
- *      rendering loop
- * 
-*/
+ * rendering loop
+ */
 
 var paused = true
 var showReference = false
@@ -48,7 +77,7 @@ var generations = 0
 var gensPerFrame = 20
 var gensPerSec = 0
 
-// flags etc
+// flags
 var drawNeeded = true
 var lastDraw = 0
 var lastGenCt = 0
@@ -59,6 +88,7 @@ function render() {
         for (var i = 0; i < gensPerFrame; i++) proj.runGeneration()
         generations += gensPerFrame
     }
+
     var now = performance.now()
     if (now - lastHtmlUpdate > 500) {
         gensPerSec = (generations - lastGenCt) / (now - lastHtmlUpdate) * 1000
@@ -66,12 +96,20 @@ function render() {
         lastGenCt = generations
         lastHtmlUpdate = now
     }
+
     if (now - lastDraw > 500 || (paused && drawNeeded)) {
         var mode = (showReference) ? 1 : (showScratch) ? 2 : 0
         switch (mode) {
-            case 0: proj.draw(-cameraRot[0], -cameraRot[1]); break
-            case 1: proj.drawTargetImage(); break
-            case 2: proj._drawScratchImage(); break
+            case 0:
+                // 正常 3D 視角：這裡是主 camera
+                proj.draw(-cameraRot[0], -cameraRot[1])
+                break
+            case 1:
+                proj.drawTargetImage()      // 主視圖參考
+                break
+            case 2:
+                proj._drawScratchImage()    // 主視圖 scratch
+                break
         }
         drawNeeded = false
         lastDraw = now
@@ -81,10 +119,8 @@ function render() {
 render()
 
 /*
- * 
- *      settings / ui
- * 
-*/
+ * settings / ui
+ */
 
 var setupInput = (el, handler) => {
     $(el).addEventListener('change', ev => {
@@ -94,14 +130,15 @@ var setupInput = (el, handler) => {
     })
 }
 
-setupInput('paused', val => { paused = val })
-setupInput('showRef', val => { showReference = val })
-setupInput('showScr', val => { showScratch = val })
+setupInput('paused',       val => { paused = val })
+setupInput('showRef',      val => { showReference = val })
+setupInput('showScr',      val => { showScratch = val })
 setupInput('gensPerFrame', val => { gensPerFrame = parseInt(val) })
 
 var minAlpha = 0.1
 var maxAlpha = 0.5
 var setAlpha = () => proj.setAlphaRange(minAlpha, maxAlpha)
+
 setupInput('minAlpha', val => { minAlpha = parseFloat(val); setAlpha() })
 setupInput('maxAlpha', val => { maxAlpha = parseFloat(val); setAlpha() })
 setupInput('adjust',   val => { proj.setAdjustAmount(parseFloat(val) || 0.5) })
@@ -135,18 +172,14 @@ document.onkeydown = ev => {
 }
 
 /*
- * 
- *      reset / clear project
- * 
-*/
+ * reset / clear project
+ */
 
 function resetProject() {
-    // 停止演化
     paused = true
     var pausedCheckbox = $('paused')
     if (pausedCheckbox) pausedCheckbox.checked = true
 
-    // 統計歸零
     generations    = 0
     gensPerSec     = 0
     lastGenCt      = 0
@@ -154,22 +187,23 @@ function resetProject() {
     lastHtmlUpdate = performance.now()
     drawNeeded     = true
 
-    // 重新 new 一個 Projectron，真正清除多邊形
     proj = new Projectron(canvas, size)
+    window.p = proj   // 更新給 index.html 的按鈕使用
 
-    // 套回 UI 參數
     var minAlphaVal = parseFloat($('minAlpha').value) || 0.1
     var maxAlphaVal = parseFloat($('maxAlpha').value) || 0.5
     proj.setAlphaRange(minAlphaVal, maxAlphaVal)
     proj.setAdjustAmount(parseFloat($('adjust').value) || 0.5)
     proj.setFewerPolyTolerance(parseFloat($('preferFewer').value) || 0)
 
-    // 用「主視圖」再次當作 target，從零開始逼近
+    // 若已有主視圖／側視圖，重設為目標
     if (mainImage) {
         proj.setTargetImage(mainImage)
     }
+    if (sideImage) {
+        proj.setTargetImage2(sideImage)
+    }
 
-    // UI 顯示歸零
     $('polys').value = 0
     $('gens').value  = 0
     $('gps').value   = 0
@@ -182,10 +216,8 @@ if (resetBtn) {
 }
 
 /*
- * 
- *      mouse drag / cameraAngle
- * 
-*/
+ * mouse drag / cameraAngle
+ */
 
 var rotScale = 1 / 150
 var cameraReturn = 0.9
@@ -239,10 +271,8 @@ function returnCamera() {
 }
 
 /*
- * 
- *      drag-drop / file input for images
- * 
-*/
+ * drag-drop + file inputs
+ */
 
 var dropTarget = document.body
 
@@ -261,25 +291,24 @@ window.addEventListener('load', function () {
         ev.preventDefault()
     }
 
-    // drag & drop 更換主視圖
     dropTarget.addEventListener('dragenter', stopPrevent)
     dropTarget.addEventListener('dragover',  stopPrevent)
     dropTarget.addEventListener('drop', ev => {
         stopPrevent(ev)
         var url = ev.dataTransfer.getData('text/plain')
-        var img = new Image()
+        var imgTmp = new Image()
         if (url) {
-            img.onload = () => { setMainImage(img) }
-            img.src = url
+            imgTmp.onload = () => { setMainImage(imgTmp) }
+            imgTmp.src = url
         } else {
             var file = ev.dataTransfer.files[0]
             loadImageFromFile(file, setMainImage)
         }
     })
 
-    // 主視圖：檔案選擇
-    var fileInput1  = $('imageInput')
-    var uploadBtn1  = $('uploadTrigger')
+    // 主視圖：按鈕 + input
+    var fileInput1 = $('imageInput')
+    var uploadBtn1 = $('uploadTrigger')
 
     if (fileInput1 && uploadBtn1) {
         uploadBtn1.addEventListener('click', () => {
@@ -293,16 +322,9 @@ window.addEventListener('load', function () {
         })
     }
 
-    // 側視圖：第二張圖片（目前先存成 sideImage，之後可用於多視角優化）
+    // 側視圖：按鈕 + input（右側 +90° 視角對應的影像）
     var fileInput2 = $('imageInput2')
     var uploadBtn2 = $('uploadTrigger2')
-
-    function setSideImage(img) {
-        sideImage = img
-        // 目前只紀錄起來，之後你在 Projectron 核心裡用來做第二視角的 target
-        // 例如未來可以呼叫 proj.setTargetImages(mainImage, sideImage)
-        // 或在 GPU 比分時同時計算兩個投影誤差
-    }
 
     if (fileInput2 && uploadBtn2) {
         uploadBtn2.addEventListener('click', () => {

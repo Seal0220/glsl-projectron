@@ -235,6 +235,29 @@
             font-family: 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
             text-align: center;
         }
+
+        /* 兩張縮圖 */
+        .thumb-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+        }
+
+        .thumb-box {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .thumb {
+            width: 180px;
+            height: 180px;
+            background: #0b1322;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            object-fit: contain;
+        }
     </style>
 </head>
 
@@ -245,16 +268,23 @@
                 <div class="pill">建立新的投影</div>
                 <h1>GLSL Projectron</h1>
                 <p class="panel-subtitle">
-                    透過演化多邊形雲，使其逐步逼近你的目標影像。調整參數、觀察迭代過程，並可匯出最終的幾何資料。
+                    透過演化多邊形雲，使其同時逼近兩個視角的目標影像（正面與右側）。調整參數、觀察迭代過程，並可匯出最終的幾何資料。
                 </p>
             </div>
 
             <div class="button-row">
                 <input type="checkbox" id="paused" checked style="display: none;" />
                 <button id="pauseBtn" type="button">暫停</button>
-                <button id="uploadTrigger" type="button">選擇目標圖片</button>
-                <button id="resetBtn" type="button">清除</button>
+
+                <!-- 主視圖 -->
+                <button id="uploadTrigger" type="button">主視圖圖片</button>
                 <input id="imageInput" type="file" accept="image/*" hidden />
+
+                <!-- 側視圖 -->
+                <button id="uploadTrigger2" type="button">側視圖圖片</button>
+                <input id="imageInput2" type="file" accept="image/*" hidden />
+
+                <button id="resetBtn" type="button">清除</button>
             </div>
         </header>
 
@@ -284,17 +314,17 @@
                         </div>
 
                         <div class="stat">
-                            <label>世代數</label>
+                            <label>迭代數</label>
                             <input id='gens' type='text' readonly>
                         </div>
 
                         <div class="stat">
-                            <label>世代 / 秒</label>
+                            <label>代 / 秒</label>
                             <input id='gps' type='text' readonly>
                         </div>
 
                         <div class="stat">
-                            <label>分數</label>
+                            <label>總分（幾何平均）</label>
                             <input id='score' type='text' readonly>
                         </div>
                     </div>
@@ -360,42 +390,53 @@
 
                     <div class="button-row">
                         <label class="inline">
-                            <input type='checkbox' id='showRef' /> 顯示參考影像
+                            <input type='checkbox' id='showRef' /> 顯示主視圖參考
                         </label>
 
                         <label class="inline">
-                            <input type='checkbox' id='showScr' /> 顯示暫存緩衝
+                            <input type='checkbox' id='showScr' /> 顯示主視圖暫存
                         </label>
+                    </div>
+
+                    <!-- 兩張原圖縮圖 -->
+                    <div class="thumb-row">
+                        <div class="thumb-box">
+                            <div class="panel-subtitle">主視圖</div>
+                            <img id="thumbMain" class="thumb">
+                        </div>
+                        <div class="thumb-box">
+                            <div class="panel-subtitle">側視圖（+90°）</div>
+                            <img id="thumbSide" class="thumb">
+                        </div>
                     </div>
                 </div>
 
             </div>
         </div>
-    </div>
 
-    <script src="maker-bundle.js"></script>
+        <script src="maker-bundle.js"></script>
 
-    <script>
-        (function () {
-            var checkbox = document.getElementById('paused');
-            var btn = document.getElementById('pauseBtn');
-            if (!checkbox || !btn) return;
+        <script>
+            (function () {
+                var checkbox = document.getElementById('paused');
+                var btn = document.getElementById('pauseBtn');
+                if (!checkbox || !btn) return;
 
-            function syncLabel() {
-                btn.textContent = checkbox.checked ? '運行' : '暫停';
-            }
+                function syncLabel() {
+                    btn.textContent = checkbox.checked ? '運行' : '暫停';
+                }
 
-            btn.addEventListener('click', function () {
-                checkbox.checked = !checkbox.checked;
-                var ev = new Event('change', { bubbles: true });
-                checkbox.dispatchEvent(ev);
+                btn.addEventListener('click', function () {
+                    checkbox.checked = !checkbox.checked;
+                    var ev = new Event('change', { bubbles: true });
+                    checkbox.dispatchEvent(ev);
+                    syncLabel();
+                });
+
                 syncLabel();
-            });
+            })();
+        </script>
 
-            syncLabel();
-        })();
-    </script>
-
-</body>
+    </body>
 
 </html>
