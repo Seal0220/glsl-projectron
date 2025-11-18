@@ -386,7 +386,7 @@
         </div>
     </div>
 
-    <script src="src/maker-bundle.js"></script>
+    <script src="maker-bundle.js"></script>
     <script>
         (function () {
           var checkbox = document.getElementById('paused');
@@ -394,7 +394,7 @@
           if (!checkbox || !btn) return;
       
           function syncLabel() {
-            btn.textContent = checkbox.checked ? '暫停中' : '運行中';
+            btn.textContent = checkbox.checked ? '運行' : '暫停';
           }
       
           btn.addEventListener('click', function () {
