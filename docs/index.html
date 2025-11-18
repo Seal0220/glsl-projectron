@@ -269,18 +269,23 @@
             <div class="headline">
                 <div class="pill">Create a new projection</div>
                 <h1>GLSL Projectron</h1>
-                <p class="panel-subtitle">Evolve a 3D polygon cloud until it matches your target image. Tune the knobs, watch it
-                    iterate, and export the resulting geometry.</p>
+                <p class="panel-subtitle">
+                    Evolve a 3D polygon cloud until it matches your target image. Tune the knobs, watch it
+                    iterate, and export the resulting geometry.
+                </p>
             </div>
             <div class="button-row">
-                <label class="inline">
-                    <input type='checkbox' id='paused' checked />
-                    <strong>Paused</strong>
-                </label>
+                <!-- 保留給既有 JS 使用的隱藏 checkbox -->
+                <input type="checkbox" id="paused" checked style="display: none;" />
+        
+                <!-- 新的樣式按鈕，風格跟右邊一樣 -->
+                <button id="pauseBtn" type="button">Paused</button>
+        
                 <button id="uploadTrigger" type="button">選擇目標圖片</button>
                 <input id="imageInput" type="file" accept="image/*" hidden />
             </div>
         </header>
+        
 
         <div class="layout">
             <div class="panel">
@@ -377,16 +382,31 @@
                         </label>
                     </div>
                 </div>
-
-                <div class="links">
-                    <div>帶參數的內部比較解析度：<a href="./index.html?size=128">?size=128</a></div>
-                    <div>返回 <a href="https://github.com/fenomas/glsl-projectron">GLSL-Projectron</a></div>
-                </div>
             </div>
         </div>
     </div>
 
     <script src="maker-bundle.js"></script>
+    <script>
+        (function () {
+          var checkbox = document.getElementById('paused');
+          var btn = document.getElementById('pauseBtn');
+          if (!checkbox || !btn) return;
+      
+          function syncLabel() {
+            btn.textContent = checkbox.checked ? '暫停中' : '運行中';
+          }
+      
+          btn.addEventListener('click', function () {
+            checkbox.checked = !checkbox.checked;
+            var ev = new Event('change', { bubbles: true });
+            checkbox.dispatchEvent(ev);
+            syncLabel();
+          });
+      
+          syncLabel();
+        })();
+      </script>
 </body>
 
 </html>
