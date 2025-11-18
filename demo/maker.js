@@ -134,6 +134,26 @@ setupInput('maxAlpha', val => { maxAlpha = parseFloat(val); setAlpha() })
 setupInput('adjust', val => { proj.setAdjustAmount(parseFloat(val) || 0.5) })
 setupInput('preferFewer', val => { proj.setFewerPolyTolerance(parseFloat(val) || 0) })
 
+var fileInput = $('imageInput')
+var uploadTrigger = $('uploadTrigger')
+var loadFromFile = file => {
+    if (!file || !file.type.match(/image.*/)) return
+    var reader = new FileReader()
+    reader.onloadend = e => {
+        var localImg = new Image()
+        localImg.onload = () => setImage(localImg)
+        localImg.src = e.target.result
+    }
+    reader.readAsDataURL(file)
+}
+
+uploadTrigger.addEventListener('click', () => fileInput.click())
+fileInput.addEventListener('change', ev => {
+    var file = ev.target.files && ev.target.files[0]
+    loadFromFile(file)
+    fileInput.value = ''
+})
+
 $('export').addEventListener('click', ev => {
     var dat = proj.exportData()
     $('data').value = dat
@@ -234,43 +254,7 @@ function returnCamera() {
 
 
 
-/*
- * 
- * 
- *      drag-drop new images
- * 
- * 
-*/
-
-var dropTarget = document.body
-
-window.addEventListener('load', function () {
-    var stopPrevent = ev => {
-        ev.stopPropagation()
-        ev.preventDefault()
-    }
-    dropTarget.addEventListener('dragenter', stopPrevent)
-    dropTarget.addEventListener('dragover', stopPrevent)
-    dropTarget.addEventListener('drop', ev => {
-        stopPrevent(ev)
-        var url = ev.dataTransfer.getData('text/plain')
-        var img = new Image()
-        if (url) {
-            // dragged by url from another site etc
-            img.onload = ev => { setImage(img) }
-            img.src = url
-        } else {
-            // dragged from local FS
-            var file = ev.dataTransfer.files[0]
-            if (!file.type.match(/image.*/)) return
-            img.file = file
-            img.onload = e => { setImage(img) }
-            var reader = new FileReader()
-            reader.onloadend = e => { img.src = e.target.result }
-            reader.readAsDataURL(file)
-        }
-    })
-})
+// image upload is now driven by the picker in the UI
 
 
 
