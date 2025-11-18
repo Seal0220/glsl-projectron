@@ -1,4 +1,6 @@
 ## GLSL-Projectron
+
+modified from [glsl-projectron](https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units)
 --------
 
 This is a WebGL/[GPGPU](https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units) demo I made to try out shader programming. It generates random 3D polygons which resemble a given target image when projected. Basically it's similar to [this](https://rogeralsing.com/2008/12/07/genetic-programming-evolution-of-mona-lisa/), but done in 3D and on the GPU.
