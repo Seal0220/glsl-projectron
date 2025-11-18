@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-tw">
 
 <head>
     <meta charset="utf-8">
-    <title>GLSL Projectron creator demo</title>
+    <title>GLSL Projectron 建構示範</title>
     <meta name="description" content="viewer">
     <style type="text/css">
         :root {
@@ -143,11 +143,6 @@
             font-size: 14px;
         }
 
-        label strong {
-            color: var(--text);
-            font-weight: 600;
-        }
-
         .inline {
             display: inline-flex;
             align-items: center;
@@ -240,26 +235,6 @@
             font-family: 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
             text-align: center;
         }
-
-        .links {
-            margin-top: 1.25rem;
-            color: var(--muted);
-            line-height: 1.6;
-        }
-
-        @media (max-width: 960px) {
-            header {
-                flex-direction: column;
-            }
-
-            .layout {
-                grid-template-columns: 1fr;
-            }
-
-            canvas#view {
-                max-width: 100%;
-            }
-        }
     </style>
 </head>
 
@@ -267,31 +242,27 @@
     <div class="app">
         <header>
             <div class="headline">
-                <div class="pill">Create a new projection</div>
+                <div class="pill">建立新的投影</div>
                 <h1>GLSL Projectron</h1>
                 <p class="panel-subtitle">
-                    Evolve a 3D polygon cloud until it matches your target image. Tune the knobs, watch it
-                    iterate, and export the resulting geometry.
+                    透過演化多邊形雲，使其逐步逼近你的目標影像。調整參數、觀察迭代過程，並可匯出最終的幾何資料。
                 </p>
             </div>
+
             <div class="button-row">
-                <!-- 保留給既有 JS 使用的隱藏 checkbox -->
                 <input type="checkbox" id="paused" checked style="display: none;" />
-        
-                <!-- 新的樣式按鈕，風格跟右邊一樣 -->
-                <button id="pauseBtn" type="button">Paused</button>
-        
+                <button id="pauseBtn" type="button">暫停</button>
                 <button id="uploadTrigger" type="button">選擇目標圖片</button>
+                <button id="resetBtn" type="button">清除</button>
                 <input id="imageInput" type="file" accept="image/*" hidden />
             </div>
         </header>
-        
 
         <div class="layout">
             <div class="panel">
                 <div class="panel-header">
-                    <span>Viewport</span>
-                    <span class="panel-subtitle">拖曳旋轉視角</span>
+                    <span>視窗區</span>
+                    <span class="panel-subtitle">拖曳以旋轉視角</span>
                 </div>
                 <div class="canvas-frame">
                     <canvas id='view' width="500" height="500"></canvas>
@@ -299,26 +270,31 @@
             </div>
 
             <div class="controls">
+
                 <div class="control-card">
                     <div class="panel-header">
-                        <span>Progress</span>
+                        <span>進度</span>
                         <span class="panel-subtitle">自動更新</span>
                     </div>
+
                     <div class="stat-boxes">
                         <div class="stat">
-                            <label>Polygons</label>
+                            <label>多邊形數</label>
                             <input id='polys' type='text' readonly>
                         </div>
+
                         <div class="stat">
-                            <label>Generations</label>
+                            <label>世代數</label>
                             <input id='gens' type='text' readonly>
                         </div>
+
                         <div class="stat">
-                            <label>Gens / s</label>
+                            <label>世代 / 秒</label>
                             <input id='gps' type='text' readonly>
                         </div>
+
                         <div class="stat">
-                            <label>Score</label>
+                            <label>分數</label>
                             <input id='score' type='text' readonly>
                         </div>
                     </div>
@@ -326,11 +302,13 @@
 
                 <div class="control-card">
                     <div class="panel-header">
-                        <span>Generation settings</span>
-                        <span class="panel-subtitle">微調演算法行為</span>
+                        <span>演化參數</span>
+                        <span class="panel-subtitle">調整演算法行為</span>
                     </div>
+
                     <div class="control-grid">
-                        <label>Generations per frame
+
+                        <label>每幀演化次數
                             <select id='gensPerFrame'>
                                 <option>1</option>
                                 <option>10</option>
@@ -339,74 +317,85 @@
                                 <option>100</option>
                             </select>
                         </label>
-                        <label>Fewer polys tolerance
+
+                        <label>較少多邊形容忍度
                             <input type='text' id='preferFewer' value='0.001'>
-                            <div class="muted-text">Score tolerance within which to drop polygons</div>
+                            <div class="muted-text">分數在此範圍內時允許捨棄多邊形</div>
                         </label>
-                        <label>Alpha range
+
+                        <label>Alpha 範圍
                             <div class="inline" style="width: 100%;">
                                 <input style="max-width: 80px;" type='text' id='minAlpha' value='0.1'>
-                                <span class="panel-subtitle">to</span>
+                                <span class="panel-subtitle">到</span>
                                 <input style="max-width: 80px;" type='text' id='maxAlpha' value='0.5'>
                             </div>
                         </label>
-                        <label>Adjust amount
+
+                        <label>調整幅度
                             <input type='text' id='adjust' value='0.5'>
                         </label>
+
                     </div>
                 </div>
 
                 <div class="control-card">
                     <div class="panel-header">
-                        <span>Data</span>
-                        <span class="panel-subtitle">匯出或匯入頂點資料</span>
+                        <span>資料匯入 / 匯出</span>
+                        <span class="panel-subtitle">頂點與顏色資料</span>
                     </div>
+
                     <div class="button-row">
-                        <button id='export'>Export vert/color data ↓</button>
-                        <button id='import'>Import vert/color data ↑</button>
+                        <button id='export'>匯出資料 ↓</button>
+                        <button id='import'>匯入資料 ↑</button>
                     </div>
+
                     <textarea id='data' rows='3' cols='30'></textarea>
                 </div>
 
                 <div class="control-card">
                     <div class="panel-header">
-                        <span>Display</span>
-                        <span class="panel-subtitle">檢視參考層</span>
+                        <span>顯示設定</span>
+                        <span class="panel-subtitle">顯示參考層或中間結果</span>
                     </div>
+
                     <div class="button-row">
                         <label class="inline">
-                            <input type='checkbox' id='showRef' />Show reference
+                            <input type='checkbox' id='showRef' /> 顯示參考影像
                         </label>
+
                         <label class="inline">
-                            <input type='checkbox' id='showScr' />Scratch buffer
+                            <input type='checkbox' id='showScr' /> 顯示暫存緩衝
                         </label>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
 
     <script src="maker-bundle.js"></script>
+
     <script>
         (function () {
-          var checkbox = document.getElementById('paused');
-          var btn = document.getElementById('pauseBtn');
-          if (!checkbox || !btn) return;
-      
-          function syncLabel() {
-            btn.textContent = checkbox.checked ? '運行' : '暫停';
-          }
-      
-          btn.addEventListener('click', function () {
-            checkbox.checked = !checkbox.checked;
-            var ev = new Event('change', { bubbles: true });
-            checkbox.dispatchEvent(ev);
+            var checkbox = document.getElementById('paused');
+            var btn = document.getElementById('pauseBtn');
+            if (!checkbox || !btn) return;
+
+            function syncLabel() {
+                btn.textContent = checkbox.checked ? '運行' : '暫停';
+            }
+
+            btn.addEventListener('click', function () {
+                checkbox.checked = !checkbox.checked;
+                var ev = new Event('change', { bubbles: true });
+                checkbox.dispatchEvent(ev);
+                syncLabel();
+            });
+
             syncLabel();
-          });
-      
-          syncLabel();
         })();
-      </script>
+    </script>
+
 </body>
 
 </html>
