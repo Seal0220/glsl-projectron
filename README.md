@@ -1,58 +1,54 @@
-## GLSL-Projectron
+# GLSL-Projectron（雙視角版本）
 
-modified from [glsl-projectron](https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units)
---------
+本專案為 [fenomas/glsl-projectron](https://github.com/fenomas/glsl-projectron) 的延伸版本。  
+在原本「單一視角、多邊形演化逼近影像」的基礎上，加入：
 
-This is a WebGL/[GPGPU](https://en.wikipedia.org/wiki/General-purpose_computing_on_graphics_processing_units) demo I made to try out shader programming. It generates random 3D polygons which resemble a given target image when projected. Basically it's similar to [this](https://rogeralsing.com/2008/12/07/genetic-programming-evolution-of-mona-lisa/), but done in 3D and on the GPU.
+- 主視圖（正面）＋側視圖（繞 Y 軸 +90°）的 **雙視角**
+- 兩張目標圖像的 **幾何平均分數** 作為適應度
+- 中文操作介面、縮圖預覽與重置功能
 
-After many generations, you get a chaotic bunch of polygons that align into an image, but only from just the right angle:
+---
 
-[![Screencap of sample output](./docs/img/mona-320.gif?raw=true "Sample output")](https://fenomas.github.io/glsl-projectron/viewer.html)
+## 1. 概念說明
 
-## Live demos:
+GLSL-Projectron 是一個使用 WebGL / GPGPU 的圖像重建實驗。
 
- * [Create a projection](https://fenomas.github.io/glsl-projectron/) (uncheck "Paused" to begin)
- * View [one I made earlier](https://fenomas.github.io/glsl-projectron/viewer.html)
- * or [this other one](https://fenomas.github.io/glsl-projectron/viewer-vermeer.html)
+- 在 3D 空間中隨機生成大量三角形（多邊形雲）。
+- 每一代透過 **突變（mutate）＋篩選（保留分數較高者）** 更新多邊形。
+- 將 3D 場景投影到 2D 平面後，與目標圖片比較差異，得到分數（score）。
+- 分數越高代表越接近目標影像。
 
-I also wrote a [blog post here](https://fenomas.com/2014/12/glsl-projectron/) explaining the algorithm, and how I made it run fast on the GPU.
+本 fork 版本中：
 
-## Installation & Usage
+- 第一張圖片為「主視圖」（正面 Frontal View）。
+- 第二張圖片為「側視圖」（固定繞 Y 軸 +90° 之右側 View）。
+- 每一代演化時，會同時：
+  - 用正面 camera 畫出 scratch1，與正面參考圖比較得分 `scoreFront`。
+  - 用側面 camera 畫出 scratch2，與側面參考圖比較得分 `scoreSide`。
+  - 將兩者做幾何平均：`totalScore = sqrt(scoreFront * scoreSide)` 作為最終分數。
+- 若新分數較好（或在容忍度內、且多邊形數更少）就保留這一代的突變。
 
-```sh
-git clone [this repo]
-cd glsl-projectron
+---
+
+## 2. 線上展示
+
+https://glsl.seal.blue/projectron/
+
+進入後可直接操作
+
+---
+
+## 3. 安裝與執行
+
+### 3.1 前置需求
+
+- Node.js（建議 16+）
+- npm
+
+### 3.2 開發模式（webpack-dev-server）
+
+```bash
+git clone https://github.com/<你的帳號>/<repo 名稱>.git
+cd <repo 名稱>
 npm install
 npm start
-```
-
-That serves a local build of the "Create" demo linked above, in `localhost:8080`.
-
-Use `npm run build` to rebuild the static version in `/docs`.
-
-To use this as a dependency, follow the example in `/demo/maker.js`:
-
-```js
-import { Projectron } from 'path/to/glsl-projectron'
-var proj = new Projectron(canvasElement)
-
-var img = new Image()
-img.onload = () => { proj.setTargetImage(img) }
-img.src = 'path/to/image.png'
-//..
-proj.runGeneration()    // many times..
-proj.draw(x,y)          // once per frame..
-```
-
-## Known issues:
-
-* Doesn't detect most error cases (just whether WebGL is supported)
-* Library treats input images as if they were square. To use for other aspects, just run it normally and change the aspect of the canvas you use to display the results.
-
-----
-
-### Credits
-
-Made with 🍺 by [Andy Hall](https://twitter.com/fenomas). MIT license.
-
-
