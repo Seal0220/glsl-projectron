@@ -149,10 +149,26 @@ $('export').addEventListener('click', ev => {
     $('data').value = dat
 })
 
+$('exportPly').addEventListener('click', ev => {
+    var ply = proj.exportPLY()
+    var blob = new Blob([ply], { type: 'application/octet-stream' })
+    var url = URL.createObjectURL(blob)
+    var link = document.createElement('a')
+    link.href = url
+    link.download = 'projectron-export.ply'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+})
+
 $('import').addEventListener('click', ev => {
     var dat = $('data').value
     var res = proj.importData(dat)
-    if (res) $('data').value = ''
+    if (res) {
+        $('data').value = ''
+        drawNeeded = true
+    }
 })
 
 function updateHTML() {
@@ -285,6 +301,13 @@ function loadImageFromFile(file, onLoad) {
     reader.readAsDataURL(file)
 }
 
+function loadTextFromFile(file, onLoad) {
+    if (!file) return
+    var reader = new FileReader()
+    reader.onloadend = e => onLoad(e.target.result || '')
+    reader.readAsText(file)
+}
+
 window.addEventListener('load', function () {
     var stopPrevent = ev => {
         ev.stopPropagation()
@@ -335,6 +358,27 @@ window.addEventListener('load', function () {
         fileInput2.addEventListener('change', ev => {
             var file = ev.target.files && ev.target.files[0]
             loadImageFromFile(file, setSideImage)
+        })
+    }
+
+    var plyInput = $('plyInput')
+    var importPlyBtn = $('importPly')
+
+    if (plyInput && importPlyBtn) {
+        importPlyBtn.addEventListener('click', () => {
+            plyInput.value = ''
+            plyInput.click()
+        })
+
+        plyInput.addEventListener('change', ev => {
+            var file = ev.target.files && ev.target.files[0]
+            loadTextFromFile(file, text => {
+                var res = proj.importPLY(text)
+                if (res) {
+                    $('data').value = ''
+                    drawNeeded = true
+                }
+            })
         })
     }
 })

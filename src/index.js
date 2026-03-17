@@ -396,6 +396,339 @@ export function Projectron(canvas, size) {
 		return s
 	}
 
+	this.exportPLY = function () {
+		var verts = polys.getVertArray()
+		var cols = polys.getColorArray()
+		var numVerts = polys.getNumVerts()
+		var numFaces = polys.getNumPolys()
+		var toByte = function (n) {
+			return Math.max(0, Math.min(255, Math.round(n * 255)))
+		}
+		var lines = [
+			'ply',
+			'format ascii 1.0',
+			'comment Exported from glsl-projectron',
+			'element vertex ' + numVerts,
+			'property float x',
+			'property float y',
+			'property float z',
+			'property uchar red',
+			'property uchar green',
+			'property uchar blue',
+			'property uchar alpha',
+			'property uchar opacity',
+			'element face ' + numFaces,
+			'property list uchar int vertex_indices',
+			'property uchar red',
+			'property uchar green',
+			'property uchar blue',
+			'property uchar alpha',
+			'property uchar opacity',
+			'end_header'
+		]
+
+		for (var i = 0; i < numVerts; i++) {
+			var vi = i * 3
+			var ci = i * 4
+			var x = verts[vi].toFixed(8)
+			var y = verts[vi + 1].toFixed(8)
+			var z = verts[vi + 2].toFixed(8)
+			var r = toByte(cols[ci])
+			var g = toByte(cols[ci + 1])
+			var b = toByte(cols[ci + 2])
+			var a = toByte(cols[ci + 3])
+			lines.push([x, y, z, r, g, b, a, a].join(' '))
+		}
+
+		for (var faceIndex = 0; faceIndex < numFaces; faceIndex++) {
+			var base = faceIndex * 3
+			var faceColorIndex = base * 4
+			var faceColorIndex2 = (base + 1) * 4
+			var faceColorIndex3 = (base + 2) * 4
+			var fr = toByte((cols[faceColorIndex] + cols[faceColorIndex2] + cols[faceColorIndex3]) / 3)
+			var fg = toByte((cols[faceColorIndex + 1] + cols[faceColorIndex2 + 1] + cols[faceColorIndex3 + 1]) / 3)
+			var fb = toByte((cols[faceColorIndex + 2] + cols[faceColorIndex2 + 2] + cols[faceColorIndex3 + 2]) / 3)
+			var fa = toByte((cols[faceColorIndex + 3] + cols[faceColorIndex2 + 3] + cols[faceColorIndex3 + 3]) / 3)
+			lines.push([
+				'3',
+				base,
+				base + 1,
+				base + 2,
+				fr,
+				fg,
+				fb,
+				fa,
+				fa
+			].join(' '))
+		}
+
+		return lines.join('\n') + '\n'
+	}
+
+	function applyImportedArrays(v, c, sortPolys) {
+		polys.setArrays(v, c)
+		if (sortPolys) {
+			polys.sortPolygonsByZ()
+		}
+		vertBuffer.update(polys.getVertArray())
+		colBuffer.update(polys.getColorArray())
+		polyBuffersOutdated = false
+		if (tgtTexture1) {
+			currentScore = computeTotalScore()
+		}
+		return true
+	}
+
+	this.importPLY = function (s) {
+		if (!s || s.length < 8) return
+
+		var lines = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
+		if (!lines.length || lines[0].trim() !== 'ply') {
+			console.warn('PLY import failed: missing "ply" header')
+			return
+		}
+
+		var format = null
+		var headerEnd = -1
+		var currentElement = null
+		var elements = {}
+		for (var i = 1; i < lines.length; i++) {
+			var line = lines[i].trim()
+			if (!line || line.indexOf('comment ') === 0 || line.indexOf('obj_info ') === 0) continue
+			if (line === 'end_header') {
+				headerEnd = i
+				break
+			}
+
+			var parts = line.split(/\s+/)
+			if (parts[0] === 'format') {
+				format = parts[1]
+			} else if (parts[0] === 'element') {
+				currentElement = {
+					name: parts[1],
+					count: parseInt(parts[2]),
+					properties: []
+				}
+				elements[currentElement.name] = currentElement
+			} else if (parts[0] === 'property' && currentElement) {
+				if (parts[1] === 'list') {
+					currentElement.properties.push({
+						kind: 'list',
+						countType: parts[2],
+						itemType: parts[3],
+						name: parts[4]
+					})
+				} else {
+					currentElement.properties.push({
+						kind: 'scalar',
+						type: parts[1],
+						name: parts[2]
+					})
+				}
+			}
+		}
+
+		if (format !== 'ascii') {
+			console.warn('PLY import failed: only ASCII PLY is supported')
+			return
+		}
+		if (headerEnd < 0) {
+			console.warn('PLY import failed: missing end_header')
+			return
+		}
+
+		var vertexElement = elements.vertex
+		if (!vertexElement || !vertexElement.count) {
+			console.warn('PLY import failed: missing vertex element')
+			return
+		}
+
+		var integerTypes = {
+			char: true, uchar: true, short: true, ushort: true,
+			int: true, uint: true, int8: true, uint8: true,
+			int16: true, uint16: true, int32: true, uint32: true
+		}
+		var clamp01 = function (n) {
+			return Math.max(0, Math.min(1, n))
+		}
+		var normalizeColor = function (value, type, fallback) {
+			if (value === undefined || value === null || isNaN(value)) return fallback
+			if (integerTypes[type]) return clamp01(value / 255)
+			if (value > 1 || value < 0) return clamp01(value / 255)
+			return clamp01(value)
+		}
+		var getScalarType = function (element, name) {
+			if (!element) return null
+			for (var ei = 0; ei < element.properties.length; ei++) {
+				var prop = element.properties[ei]
+				if (prop.kind === 'scalar' && prop.name === name) return prop.type
+			}
+			return null
+		}
+		var pickDefined = function () {
+			for (var ai = 0; ai < arguments.length; ai++) {
+				if (arguments[ai] !== undefined) return arguments[ai]
+			}
+		}
+		var nextDataTokens = function (state) {
+			while (state.index < lines.length) {
+				var raw = lines[state.index++].trim()
+				if (!raw || raw.indexOf('comment ') === 0 || raw.indexOf('obj_info ') === 0) continue
+				return raw.split(/\s+/)
+			}
+			return null
+		}
+		var parseElementRow = function (tokens, props) {
+			var cursor = 0
+			var row = {}
+			for (var pi = 0; pi < props.length; pi++) {
+				var prop = props[pi]
+				if (prop.kind === 'list') {
+					var listCount = parseInt(tokens[cursor++])
+					var list = []
+					for (var li = 0; li < listCount; li++) {
+						list.push(parseFloat(tokens[cursor++]))
+					}
+					row[prop.name] = list
+				} else {
+					row[prop.name] = parseFloat(tokens[cursor++])
+				}
+			}
+			return row
+		}
+
+		var state = { index: headerEnd + 1 }
+		var vertexTypes = {
+			red: getScalarType(vertexElement, 'red') || getScalarType(vertexElement, 'r'),
+			green: getScalarType(vertexElement, 'green') || getScalarType(vertexElement, 'g'),
+			blue: getScalarType(vertexElement, 'blue') || getScalarType(vertexElement, 'b'),
+			alpha: getScalarType(vertexElement, 'alpha') || getScalarType(vertexElement, 'opacity') || getScalarType(vertexElement, 'a')
+		}
+		var vertices = []
+		for (i = 0; i < vertexElement.count; i++) {
+			var vertexTokens = nextDataTokens(state)
+			if (!vertexTokens) {
+				console.warn('PLY import failed: vertex data ended early')
+				return
+			}
+			var vertexRow = parseElementRow(vertexTokens, vertexElement.properties)
+			if (isNaN(vertexRow.x) || isNaN(vertexRow.y) || isNaN(vertexRow.z)) {
+				console.warn('PLY import failed: vertex is missing x/y/z')
+				return
+			}
+			var vertexRedRaw = pickDefined(vertexRow.red, vertexRow.r)
+			var vertexGreenRaw = pickDefined(vertexRow.green, vertexRow.g)
+			var vertexBlueRaw = pickDefined(vertexRow.blue, vertexRow.b)
+			var vertexAlphaRaw = pickDefined(vertexRow.alpha, vertexRow.opacity, vertexRow.a)
+			vertices.push({
+				x: vertexRow.x,
+				y: vertexRow.y,
+				z: vertexRow.z,
+				r: normalizeColor(vertexRedRaw, vertexTypes.red, 1),
+				g: normalizeColor(vertexGreenRaw, vertexTypes.green, 1),
+				b: normalizeColor(vertexBlueRaw, vertexTypes.blue, 1),
+				a: normalizeColor(vertexAlphaRaw, vertexTypes.alpha, 1),
+				hasR: vertexRedRaw !== undefined,
+				hasG: vertexGreenRaw !== undefined,
+				hasB: vertexBlueRaw !== undefined,
+				hasA: vertexAlphaRaw !== undefined
+			})
+		}
+
+		var faces = []
+		var faceElement = elements.face
+		var faceTypes = {
+			red: getScalarType(faceElement, 'red') || getScalarType(faceElement, 'r'),
+			green: getScalarType(faceElement, 'green') || getScalarType(faceElement, 'g'),
+			blue: getScalarType(faceElement, 'blue') || getScalarType(faceElement, 'b'),
+			alpha: getScalarType(faceElement, 'alpha') || getScalarType(faceElement, 'opacity') || getScalarType(faceElement, 'a')
+		}
+		if (faceElement && faceElement.count) {
+			for (i = 0; i < faceElement.count; i++) {
+				var faceTokens = nextDataTokens(state)
+				if (!faceTokens) {
+					console.warn('PLY import failed: face data ended early')
+					return
+				}
+				var faceRow = parseElementRow(faceTokens, faceElement.properties)
+				var indices = faceRow.vertex_indices || faceRow.vertex_index
+				if (!indices || indices.length < 3) continue
+				var faceRedRaw = pickDefined(faceRow.red, faceRow.r)
+				var faceGreenRaw = pickDefined(faceRow.green, faceRow.g)
+				var faceBlueRaw = pickDefined(faceRow.blue, faceRow.b)
+				var faceAlphaRaw = pickDefined(faceRow.alpha, faceRow.opacity, faceRow.a)
+				faces.push({
+					indices: indices,
+					r: normalizeColor(faceRedRaw, faceTypes.red, null),
+					g: normalizeColor(faceGreenRaw, faceTypes.green, null),
+					b: normalizeColor(faceBlueRaw, faceTypes.blue, null),
+					a: normalizeColor(faceAlphaRaw, faceTypes.alpha, null),
+					hasR: faceRedRaw !== undefined,
+					hasG: faceGreenRaw !== undefined,
+					hasB: faceBlueRaw !== undefined,
+					hasA: faceAlphaRaw !== undefined
+				})
+			}
+		} else {
+			for (i = 0; i + 2 < vertices.length; i += 3) {
+				faces.push({
+					indices: [i, i + 1, i + 2],
+					r: null,
+					g: null,
+					b: null,
+					a: null,
+					hasR: false,
+					hasG: false,
+					hasB: false,
+					hasA: false
+				})
+			}
+		}
+
+		if (!faces.length) {
+			console.warn('PLY import failed: no triangular geometry found')
+			return
+		}
+
+		var vertArr = []
+		var colArr = []
+		var appendTri = function (aIndex, bIndex, cIndex, face) {
+			var tri = [aIndex, bIndex, cIndex]
+			for (var ti = 0; ti < 3; ti++) {
+				var vIndex = tri[ti]
+				var vertex = vertices[vIndex]
+				if (!vertex) {
+					console.warn('PLY import failed: face references missing vertex ' + vIndex)
+					return false
+				}
+				vertArr.push(vertex.x, vertex.y, vertex.z)
+				colArr.push(
+					vertex.hasR ? vertex.r : face.hasR ? face.r : 1,
+					vertex.hasG ? vertex.g : face.hasG ? face.g : 1,
+					vertex.hasB ? vertex.b : face.hasB ? face.b : 1,
+					vertex.hasA ? vertex.a : face.hasA ? face.a : 1
+				)
+			}
+			return true
+		}
+
+		for (i = 0; i < faces.length; i++) {
+			var face = faces[i]
+			for (var fi = 1; fi + 1 < face.indices.length; fi++) {
+				if (!appendTri(face.indices[0], face.indices[fi], face.indices[fi + 1], face)) {
+					return
+				}
+			}
+		}
+
+		if (!vertArr.length || vertArr.length / 3 !== colArr.length / 4) {
+			console.warn('PLY import failed: parsed data is unbalanced')
+			return
+		}
+
+		return applyImportedArrays(vertArr, colArr, true)
+	}
+
 	this.importData = function (s) {
 		var curr, v = [], c = []
 		var arr = s.split(',')
@@ -408,13 +741,7 @@ export function Projectron(canvas, size) {
 			else { console.warn('Import: ignoring value ' + s2) }
 		})
 		if (v.length / 3 === c.length / 4) {
-			polys.setArrays(v, c)
-			vertBuffer.update(polys.getVertArray())
-			colBuffer.update(polys.getColorArray())
-			if (tgtTexture1) {
-				currentScore = computeTotalScore()
-			}
-			return true
+			return applyImportedArrays(v, c, false)
 		} else {
 			console.warn('Import failed: unbalanced counts, verts=' +
 				`${v.length / 3}  cols=${c.length / 4}`
