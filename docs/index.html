@@ -1,710 +1,474 @@
 <!DOCTYPE html>
 <html lang="zh-tw">
-
 <head>
     <meta charset="utf-8">
-    <title>GLSL Projectron 建構示範</title>
-    <meta name="description" content="viewer">
-    <style type="text/css">
+    <title>Projectron Tools</title>
+    <meta name="description" content="GLSL Projectron tool hub">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
         :root {
-            --bg: #0b1220;
-            --panel: #121b2d;
-            --panel-muted: #0f1626;
-            --text: #e7ecf5;
-            --muted: #9cb0c9;
-            --accent: #7dd3fc;
-            --accent-strong: #38bdf8;
-            --border: #1f2c44;
-            --shadow: 0 10px 35px rgba(5, 10, 25, 0.45);
+            --panel: rgba(14, 24, 38, 0.92);
+            --panel-2: #111e2f;
+            --panel-3: #0a1421;
+            --text: #e8eff8;
+            --muted: #8ea6c4;
+            --accent: #76e2c3;
+            --accent-soft: rgba(118, 226, 195, 0.14);
+            --border: rgba(160, 190, 226, 0.16);
+            --mono: "JetBrains Mono", Consolas, monospace;
+            --sans: "Aptos", "Noto Sans TC", "Segoe UI", sans-serif;
+            --shadow: 0 24px 64px rgba(2, 8, 15, 0.42);
         }
 
-        * {
-            box-sizing: border-box;
-        }
-
-        html,
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; }
         body {
-            margin: 0;
-            min-height: 100%;
-            background: radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.15), transparent 25%),
-                radial-gradient(circle at 90% 10%, rgba(125, 211, 252, 0.08), transparent 30%),
-                var(--bg);
+            background:
+                radial-gradient(circle at 12% 18%, rgba(118, 226, 195, 0.18), transparent 24%),
+                radial-gradient(circle at 85% 16%, rgba(97, 132, 255, 0.12), transparent 25%),
+                linear-gradient(180deg, #09111b 0%, #081019 100%);
             color: var(--text);
-            font: 400 15px 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            font: 400 15px/1.5 var(--sans);
         }
 
-        a {
-            color: var(--accent);
-        }
-
-        .app {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 1.5rem;
-        }
-
-        header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .headline {
-            line-height: 1.5;
-        }
-
-        h1 {
-            margin: 0 0 0.25rem;
-            font-weight: 600;
-            letter-spacing: 0.01em;
-        }
-
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            background: rgba(125, 211, 252, 0.16);
-            color: var(--accent);
-            padding: 0.4rem 0.75rem;
-            border-radius: 999px;
-            font-size: 13px;
-            letter-spacing: 0.02em;
-        }
-
-        .layout {
-            display: grid;
-            grid-template-columns: 1.15fr 0.85fr;
-            gap: 1rem;
-            align-items: start;
-        }
-
-        .panel {
-            background: var(--panel);
+        button, input, select, textarea { font: inherit; color: inherit; }
+        button, input[type='text'], select, textarea {
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 1rem 1.2rem;
-            box-shadow: var(--shadow);
-        }
-
-        .panel-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.6rem;
-            font-weight: 600;
-            letter-spacing: 0.01em;
-        }
-
-        .panel-subtitle {
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        .canvas-frame {
-            background: var(--panel-muted);
-            border-radius: 10px;
-            padding: 0.75rem;
-            border: 1px solid var(--border);
-        }
-
-        canvas#view {
-            width: 100%;
-            max-width: 560px;
-            display: block;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: #000;
-        }
-
-        .controls {
-            display: grid;
-            gap: 0.85rem;
-        }
-
-        .control-card {
-            background: var(--panel-muted);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 0.75rem 0.9rem;
-        }
-
-        .control-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 0.6rem 0.75rem;
-        }
-
-        label {
-            user-select: none;
-            display: block;
-            color: var(--muted);
-            font-size: 14px;
-        }
-
-        .inline {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-
-        select,
-        input,
-        button,
-        textarea {
-            font: inherit;
-            color: var(--text);
-        }
-
-        select,
-        input[type='text'],
-        input[type='number'],
-        textarea {
-            width: 100%;
-            padding: 0.45rem 0.55rem;
-            background: #0b1322;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            outline: none;
-        }
-
-        input[type='checkbox'] {
-            accent-color: var(--accent);
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 90px;
-        }
-
-        .button-row {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
         }
 
         button {
             appearance: none;
-            border: 1px solid var(--border);
-            background: linear-gradient(135deg, rgba(125, 211, 252, 0.18), rgba(56, 189, 248, 0.14));
-            color: var(--text);
-            padding: 0.55rem 0.85rem;
-            border-radius: 8px;
-            cursor: pointer;
+            background: linear-gradient(135deg, rgba(118, 226, 195, 0.16), rgba(93, 133, 255, 0.08));
+            padding: 0.62rem 0.92rem;
             font-weight: 600;
-            letter-spacing: 0.02em;
-            transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+            cursor: pointer;
+            transition: transform .14s ease, border-color .14s ease;
         }
 
-        button:hover {
-            transform: translateY(-1px);
-            border-color: var(--accent);
-            box-shadow: 0 6px 16px rgba(56, 189, 248, 0.18);
+        button:hover { transform: translateY(-1px); border-color: rgba(118, 226, 195, 0.44); }
+        input[type='text'], select, textarea {
+            width: 100%;
+            background: rgba(7, 14, 24, 0.95);
+            padding: 0.55rem 0.65rem;
         }
 
-        .muted-text {
-            color: var(--muted);
-            margin: 0.1rem 0 0;
-            font-size: 13px;
-        }
+        textarea { min-height: 180px; resize: vertical; }
+        input[type='checkbox'] { accent-color: var(--accent); }
+        code { font-family: var(--mono); }
 
-        .stat-boxes {
+        .shell {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-            gap: 0.55rem;
-            margin-top: 0.35rem;
+            grid-template-columns: 290px minmax(0, 1fr);
+            gap: 1.2rem;
+            min-height: 100vh;
+            padding: 1.2rem;
         }
 
-        .stat {
-            background: rgba(255, 255, 255, 0.03);
+        .sidebar, .page {
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 0.5rem 0.6rem;
+            background: linear-gradient(180deg, rgba(17, 29, 46, 0.94), rgba(9, 17, 28, 0.96));
+            box-shadow: var(--shadow);
         }
 
-        .stat label {
-            font-size: 12px;
-            letter-spacing: 0.02em;
-            margin-bottom: 0.2rem;
-        }
-
-        .stat input {
-            font-family: 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
-            text-align: center;
-        }
-
-        /* 兩張縮圖 */
-        .thumb-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-            align-items: center;
-        }
-
-        .thumb-box {
+        .sidebar {
+            position: sticky;
+            top: 1.2rem;
+            height: calc(100vh - 2.4rem);
+            padding: 1.1rem;
+            border-radius: 24px;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 1rem;
         }
 
-        .thumb {
-            width: 180px;
-            height: 180px;
-            background: #0b1322;
+        .pill {
+            display: inline-flex;
+            width: fit-content;
+            padding: 0.35rem 0.72rem;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        h1, h2, p { margin: 0; }
+        .sidebar p, .meta, .hint, label { color: var(--muted); }
+        .sidebar p, .meta, .hint { font-size: 13px; }
+
+        .nav { display: grid; gap: 0.65rem; }
+        .nav-btn {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.8rem;
+            width: 100%;
+            text-align: left;
+            padding: 0.82rem 0.88rem;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .nav-btn.active {
+            background: linear-gradient(135deg, rgba(118, 226, 195, 0.18), rgba(93, 133, 255, 0.12));
+            border-color: rgba(118, 226, 195, 0.42);
+        }
+
+        .nav-no {
+            width: 2.1rem;
+            height: 2.1rem;
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--accent);
+            font: 600 12px/1 var(--mono);
+        }
+
+        .sidebar-foot { margin-top: auto; padding-top: 0.9rem; border-top: 1px solid rgba(255,255,255,0.08); }
+        .content { min-width: 0; }
+        .panel { display: none; }
+        .panel.active { display: block; animation: fade .2s ease; }
+        @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .page { border-radius: 28px; padding: 1.3rem; }
+        .page-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .row { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center; }
+        .grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr); gap: 1rem; align-items: start; }
+        .card {
+            background: var(--panel-2);
             border: 1px solid var(--border);
-            border-radius: 6px;
-            object-fit: contain;
+            border-radius: 20px;
+            padding: 1rem;
+        }
+
+        .card-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .frame {
+            padding: 0.75rem;
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(8, 15, 24, 0.95), rgba(4, 9, 16, 0.98));
+            border: 1px solid var(--border);
+        }
+
+        #view2d, #view3d {
+            width: 100%;
+            max-width: 560px;
+            display: block;
+            margin: 0 auto;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: #000;
+        }
+
+        .stack { display: grid; gap: 0.85rem; }
+        .control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.6rem; }
+        .stat {
+            padding: 0.55rem 0.65rem;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+        }
+
+        .stat label { display: block; margin-bottom: 0.2rem; font-size: 12px; }
+        .stat input { text-align: center; font-family: var(--mono); }
+        .thumbs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 0.9rem; }
+        .thumb { width: 100%; height: 190px; object-fit: contain; border: 1px solid var(--border); border-radius: 16px; background: var(--panel-3); }
+        .sync-note { margin-top: 0.75rem; }
+
+        .blank-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr); gap: 1rem; }
+        .blank-surface {
+            min-height: 360px;
+            border: 1px dashed rgba(118, 226, 195, 0.28);
+            border-radius: 24px;
+            background:
+                radial-gradient(circle at 18% 22%, rgba(118, 226, 195, 0.18), transparent 22%),
+                radial-gradient(circle at 82% 18%, rgba(93, 133, 255, 0.14), transparent 24%),
+                rgba(7, 14, 24, 0.82);
+        }
+
+        .blank-notes { display: grid; gap: 0.8rem; }
+
+        @media (max-width: 1080px) {
+            .shell { grid-template-columns: 1fr; }
+            .sidebar { position: static; height: auto; }
+            .nav { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+        }
+
+        @media (max-width: 860px) {
+            .grid, .blank-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 720px) {
+            .shell { padding: 0.85rem; }
+            .sidebar, .page { padding: 1rem; border-radius: 22px; }
+            .page-head { flex-direction: column; }
+            .thumbs { grid-template-columns: 1fr; }
         }
     </style>
 </head>
-
 <body>
-    <div class="app">
-        <header>
-            <div class="headline">
-                <div class="pill">建立新的投影</div>
-                <h1>GLSL Projectron</h1>
-                <p class="panel-subtitle">
-                    透過演化多邊形雲，使其同時逼近兩個視角的目標影像（正面與右側）。調整參數、觀察迭代過程，並可匯出最終的幾何資料。
-                </p>
+    <div class="shell">
+        <aside class="sidebar">
+            <div class="pill">Tool Hub</div>
+            <div>
+                <h1>Projectron Workspace</h1>
+                <p>把 GLSL Projectron 拆成兩條流程：01 專注 2D 圖像輸入與演化，02 專注 3D 模型檢視與資料匯入匯出。</p>
             </div>
 
-            <div class="button-row">
-                <input type="checkbox" id="paused" checked style="display: none;" />
-                <button id="pauseBtn" type="button">暫停</button>
+            <nav class="nav" aria-label="工具頁面">
+                <button class="nav-btn active" type="button" data-panel="projectron-2d"><span class="nav-no">01</span><span><strong>2D 圖像</strong><br><span class="meta">目標圖、演化與投影</span></span></button>
+                <button class="nav-btn" type="button" data-panel="projectron-3d"><span class="nav-no">02</span><span><strong>3D 模型</strong><br><span class="meta">模型檢視與匯入匯出</span></span></button>
+                <button class="nav-btn" type="button" data-panel="tool-blank-b"><span class="nav-no">03</span><span><strong>空白工具 03</strong><br><span class="meta">預留頁面</span></span></button>
+                <button class="nav-btn" type="button" data-panel="tool-blank-c"><span class="nav-no">04</span><span><strong>空白工具 04</strong><br><span class="meta">預留頁面</span></span></button>
+            </nav>
 
-                <!-- 主視圖 -->
-                <button id="uploadTrigger" type="button">主視圖圖片</button>
-                <input id="imageInput" type="file" accept="image/*" hidden />
+            <div class="sidebar-foot hint">支援網址 hash，例如 <code>#projectron-2d</code>、<code>#projectron-3d</code>。</div>
+        </aside>
 
-                <!-- 側視圖 -->
-                <button id="uploadTrigger2" type="button">側視圖圖片</button>
-                <input id="imageInput2" type="file" accept="image/*" hidden />
-
-                <button id="resetBtn" type="button">清除</button>
-            </div>
-        </header>
-
-        <div class="layout">
-            <div class="panel">
-                <div class="panel-header">
-                    <span>視窗區</span>
-                    <span class="panel-subtitle">拖曳以旋轉視角</span>
-                </div>
-                <div class="canvas-frame">
-                    <canvas id='view' width="500" height="500"></canvas>
-                </div>
-            </div>
-
-            <div class="controls">
-
-                <div class="control-card">
-                    <div class="panel-header">
-                        <span>進度</span>
-                        <span class="panel-subtitle">自動更新</span>
-                    </div>
-
-                    <div class="stat-boxes">
-                        <div class="stat">
-                            <label>多邊形數</label>
-                            <input id='polys' type='text' readonly>
+        <main class="content">
+            <section class="panel active" data-panel="projectron-2d">
+                <div class="page">
+                    <div class="page-head">
+                        <div>
+                            <div class="pill">Tool 01</div>
+                            <h2>2D 圖像</h2>
+                            <p class="meta">這頁處理正面與側面參考圖、演化控制與 2D 投影結果。畫布預設顯示目前主視圖投影。</p>
                         </div>
 
-                        <div class="stat">
-                            <label>迭代數</label>
-                            <input id='gens' type='text' readonly>
-                        </div>
-
-                        <div class="stat">
-                            <label>代 / 秒</label>
-                            <input id='gps' type='text' readonly>
-                        </div>
-
-                        <div class="stat">
-                            <label>總分（幾何平均）</label>
-                            <input id='score' type='text' readonly>
+                        <div class="row">
+                            <input type="checkbox" id="paused" checked hidden>
+                            <button id="pauseBtn" type="button" data-action="toggle-run">運行</button>
+                            <button id="uploadTrigger" type="button">主視圖圖片</button>
+                            <input id="imageInput" type="file" accept="image/*" hidden>
+                            <button id="uploadTrigger2" type="button">側視圖圖片</button>
+                            <input id="imageInput2" type="file" accept="image/*" hidden>
+                            <button id="resetBtn" type="button">清除</button>
                         </div>
                     </div>
-                </div>
 
-                <div class="control-card">
-                    <div class="panel-header">
-                        <span>演化參數</span>
-                        <span class="panel-subtitle">調整演算法行為</span>
-                    </div>
-
-                    <div class="control-grid">
-
-                        <label>每幀演化次數
-                            <select id='gensPerFrame'>
-                                <option>1</option>
-                                <option>10</option>
-                                <option selected='true'>20</option>
-                                <option>50</option>
-                                <option>100</option>
-                            </select>
-                        </label>
-
-                        <label>較少多邊形容忍度
-                            <input type='text' id='preferFewer' value='0.001'>
-                            <div class="muted-text">分數在此範圍內時允許捨棄多邊形</div>
-                        </label>
-
-                        <label>Alpha 範圍
-                            <div class="inline" style="width: 100%;">
-                                <input style="max-width: 80px;" type='text' id='minAlpha' value='0.1'>
-                                <span class="panel-subtitle">到</span>
-                                <input style="max-width: 80px;" type='text' id='maxAlpha' value='0.5'>
+                    <div class="grid">
+                        <div class="card">
+                            <div class="card-head"><span>2D 投影</span><span class="hint">主視圖結果 / 參考圖切換</span></div>
+                            <div class="frame"><canvas id="view2d" width="500" height="500"></canvas></div>
+                            <div class="sync-note">
+                                <label>顯示模式
+                                    <select id="display2dMode">
+                                        <option value="projection" selected>目前主視圖投影</option>
+                                        <option value="reference-main">主視圖參考圖</option>
+                                        <option value="reference-side">側視圖參考圖</option>
+                                    </select>
+                                </label>
                             </div>
-                        </label>
-
-                        <label>調整幅度
-                            <input type='text' id='adjust' value='0.5'>
-                        </label>
-
-                    </div>
-                </div>
-
-                <div class="control-card">
-                    <div class="panel-header">
-                        <span>資料匯入 / 匯出</span>
-                        <span class="panel-subtitle">頂點與顏色資料</span>
-                    </div>
-
-                    <div class="button-row">
-                        <button id='export'>匯出資料 ↓</button>
-                        <button id='exportPly'>下載 PLY</button>
-                        <button id='import'>匯入資料 ↑</button>
-                        <button id='importPly'>導入 PLY</button>
-                    </div>
-
-                    <input id='plyInput' type='file' accept='.ply,model/ply,text/plain' hidden />
-                    <textarea id='data' rows='3' cols='30'></textarea>
-                    <p class="muted-text">按下「導入 PLY」可讀取 ASCII PLY；按下「下載 PLY」會匯出目前三角形網格與每個頂點的 RGBA 顏色。</p>
-                </div>
-
-                <div class="control-card">
-                    <div class="panel-header">
-                        <span>顯示設定</span>
-                        <span class="panel-subtitle">顯示參考層或中間結果</span>
-                    </div>
-
-                    <div class="button-row">
-                        <label class="inline">
-                            <input type='checkbox' id='showRef' /> 顯示主視圖參考
-                        </label>
-
-                        <label class="inline">
-                            <input type='checkbox' id='showScr' /> 顯示主視圖暫存
-                        </label>
-                    </div>
-
-                    <!-- 兩張原圖縮圖 -->
-                    <div class="thumb-row">
-                        <div class="thumb-box">
-                            <div class="panel-subtitle">主視圖</div>
-                            <img id="thumbMain" class="thumb">
                         </div>
-                        <div class="thumb-box">
-                            <div class="panel-subtitle">側視圖（+90°）</div>
-                            <img id="thumbSide" class="thumb">
+
+                        <div class="stack">
+                            <div class="card">
+                                <div class="card-head"><span>進度</span><span class="hint">自動更新</span></div>
+                                <div class="stats">
+                                    <div class="stat"><label>多邊形數</label><input id="polys" type="text" readonly></div>
+                                    <div class="stat"><label>迭代數</label><input id="gens" type="text" readonly></div>
+                                    <div class="stat"><label>代 / 秒</label><input id="gps" type="text" readonly></div>
+                                    <div class="stat"><label>總分（幾何平均）</label><input id="score" type="text" readonly></div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-head"><span>演化參數</span><span class="hint">調整演算法行為</span></div>
+                                <div class="control-grid">
+                                    <label>每幀演化次數<select id="gensPerFrame"><option>1</option><option>10</option><option selected="true">20</option><option>50</option><option>100</option></select></label>
+                                    <label>較少多邊形容忍度<input type="text" id="preferFewer" value="0.001"><div class="hint">分數在此範圍內時允許捨棄多邊形</div></label>
+                                    <label>Alpha 範圍<div class="row"><input style="max-width:92px" type="text" id="minAlpha" value="0.1"><span class="hint">到</span><input style="max-width:92px" type="text" id="maxAlpha" value="0.5"></div></label>
+                                    <label>調整幅度<input type="text" id="adjust" value="0.5"></label>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-head"><span>參考圖</span><span class="hint">目前使用中的 2D 圖像</span></div>
+                                <div class="thumbs">
+                                    <div><div class="hint">主視圖</div><img id="thumbMain" class="thumb" alt="主視圖縮圖"></div>
+                                    <div><div class="hint">側視圖（+90°）</div><img id="thumbSide" class="thumb" alt="側視圖縮圖"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </section>
 
-            </div>
-        </div>
+            <section class="panel" data-panel="projectron-3d">
+                <div class="page">
+                    <div class="page-head">
+                        <div>
+                            <div class="pill">Tool 02</div>
+                            <h2>3D 模型</h2>
+                            <p class="meta">這頁專注看模型本身。切到這裡會同步 01 目前的模型，也可以在這裡做資料 / PLY 匯入匯出。</p>
+                        </div>
 
-        <script src="maker-bundle.js"></script>
+                        <div class="row">
+                            <button id="pauseBtn3d" type="button" data-action="toggle-run">運行</button>
+                            <button id="syncModelBtn" type="button">同步目前模型</button>
+                            <button id="reset3dViewBtn" type="button">重設視角</button>
+                        </div>
+                    </div>
 
-        <script>
-            (function () {
-                var checkbox = document.getElementById('paused');
-                var btn = document.getElementById('pauseBtn');
-                if (!checkbox || !btn) return;
+                    <div class="grid">
+                        <div class="card">
+                            <div class="card-head"><span>3D 檢視</span><span class="hint">拖曳以旋轉模型</span></div>
+                            <div class="frame"><canvas id="view3d" width="500" height="500"></canvas></div>
+                            <p class="hint sync-note">01 和 02 共用同一套模型資料。若 01 正在演化，這裡可按「同步目前模型」更新檢視。</p>
+                        </div>
 
-                function syncLabel() {
-                    btn.textContent = checkbox.checked ? '運行' : '暫停';
-                }
+                        <div class="stack">
+                            <div class="card">
+                                <div class="card-head"><span>模型狀態</span><span class="hint">來源為 01 的目前結果</span></div>
+                                <div class="stats">
+                                    <div class="stat"><label>多邊形數</label><input id="modelPolys" type="text" readonly></div>
+                                    <div class="stat"><label>迭代數</label><input id="modelGens" type="text" readonly></div>
+                                    <div class="stat"><label>目前分數</label><input id="modelScore" type="text" readonly></div>
+                                    <div class="stat"><label>同步狀態</label><input id="modelSyncStatus" type="text" readonly></div>
+                                </div>
+                            </div>
 
-                btn.addEventListener('click', function () {
-                    checkbox.checked = !checkbox.checked;
-                    var ev = new Event('change', { bubbles: true });
-                    checkbox.dispatchEvent(ev);
-                    syncLabel();
+                            <div class="card">
+                                <div class="card-head"><span>資料匯入 / 匯出</span><span class="hint">3D 模型資料</span></div>
+                                <div class="row">
+                                    <button id="exportModelData" type="button">匯出資料 ↓</button>
+                                    <button id="exportModelPly" type="button">下載 PLY</button>
+                                    <button id="importModelData" type="button">匯入資料 ↑</button>
+                                    <button id="importModelPly" type="button">導入 PLY</button>
+                                </div>
+                                <input id="modelPlyInput" type="file" accept=".ply,model/ply,text/plain" hidden>
+                                <textarea id="modelData" rows="8" cols="30"></textarea>
+                                <p class="hint">匯入會直接改寫目前模型，01 的演化結果也會一併使用這份資料繼續運算。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" data-panel="tool-blank-b">
+                <div class="page">
+                    <div class="page-head"><div><div class="pill">Tool 03</div><h2>空白工具 03</h2><p class="meta">預留頁面。</p></div></div>
+                    <div class="blank-grid">
+                        <div class="card"><div class="blank-surface"></div></div>
+                        <div class="blank-notes">
+                            <div class="card"><strong>目前狀態</strong><p class="meta">這頁還沒接任何功能。</p></div>
+                            <div class="card"><strong>後續擴充</strong><p class="meta">可直接沿用同一套 sidebar / panel 結構補新工具。</p></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" data-panel="tool-blank-c">
+                <div class="page">
+                    <div class="page-head"><div><div class="pill">Tool 04</div><h2>空白工具 04</h2><p class="meta">預留頁面。</p></div></div>
+                    <div class="blank-grid">
+                        <div class="card"><div class="blank-surface"></div></div>
+                        <div class="blank-notes">
+                            <div class="card"><strong>目前做法</strong><p class="meta">先用現有靜態頁分拆流程，不另外搬到 Next.js。</p></div>
+                            <div class="card"><strong>後續延伸</strong><p class="meta">若你之後要多路由或 SSR，再搬框架即可。</p></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="maker-bundle.js"></script>
+    <script>
+        (function () {
+            var navs = Array.prototype.slice.call(document.querySelectorAll('.nav-btn'));
+            var panels = Array.prototype.slice.call(document.querySelectorAll('.panel'));
+            var paused = document.getElementById('paused');
+            var pauseButtons = Array.prototype.slice.call(document.querySelectorAll('[data-action="toggle-run"]'));
+            var current = 'projectron-2d';
+            var resumeOnReturn = false;
+            var runtimePanels = {
+                'projectron-2d': true,
+                'projectron-3d': true
+            };
+
+            function syncPauseLabel() {
+                pauseButtons.forEach(function (button) {
+                    button.textContent = paused && paused.checked ? '運行' : '暫停';
                 });
+            }
 
-                syncLabel();
-            })();
-        </script>
+            function setPaused(nextPaused) {
+                if (!paused) return;
+                if (paused.checked === nextPaused) return syncPauseLabel();
+                paused.checked = nextPaused;
+                paused.dispatchEvent(new Event('change', { bubbles: true }));
+                syncPauseLabel();
+            }
 
-        <script>
-            (function () {
-                var importBtn = document.getElementById('importPly');
-                var plyInput = document.getElementById('plyInput');
-                var dataBox = document.getElementById('data');
-                if (!importBtn || !plyInput) return;
+            function validPanel(name) {
+                return panels.some(function (panel) { return panel.dataset.panel === name; }) ? name : 'projectron-2d';
+            }
 
-                var integerTypes = {
-                    char: true, uchar: true, short: true, ushort: true,
-                    int: true, uint: true, int8: true, uint8: true,
-                    int16: true, uint16: true, int32: true, uint32: true
-                };
+            function panelFromHash() {
+                return validPanel((window.location.hash || '').replace(/^#/, ''));
+            }
 
-                function clamp01(n) {
-                    return Math.max(0, Math.min(1, n));
+            function syncRuntime(nextPanel) {
+                var leavingRuntime = runtimePanels[current] && !runtimePanels[nextPanel];
+                var enteringRuntime = !runtimePanels[current] && runtimePanels[nextPanel];
+
+                if (leavingRuntime) {
+                    resumeOnReturn = paused && !paused.checked;
+                    setPaused(true);
                 }
 
-                function normalizeColor(value, type, fallback) {
-                    if (value === undefined || value === null || Number.isNaN(value)) return fallback;
-                    if (integerTypes[type]) return clamp01(value / 255);
-                    if (value > 1 || value < 0) return clamp01(value / 255);
-                    return clamp01(value);
+                if (enteringRuntime) {
+                    if (resumeOnReturn) setPaused(false);
+                    resumeOnReturn = false;
                 }
 
-                function pickDefined() {
-                    for (var i = 0; i < arguments.length; i++) {
-                        if (arguments[i] !== undefined) return arguments[i];
-                    }
-                }
+                syncPauseLabel();
+            }
 
-                function parseRow(tokens, props) {
-                    var cursor = 0;
-                    var row = {};
-                    props.forEach(function (prop) {
-                        if (prop.kind === 'list') {
-                            var count = parseInt(tokens[cursor++], 10);
-                            var list = [];
-                            for (var i = 0; i < count; i++) {
-                                list.push(parseFloat(tokens[cursor++]));
-                            }
-                            row[prop.name] = list;
-                        } else {
-                            row[prop.name] = parseFloat(tokens[cursor++]);
-                        }
-                    });
-                    return row;
-                }
+            function activate(name, updateHash) {
+                var next = validPanel(name);
+                syncRuntime(next);
+                navs.forEach(function (nav) { nav.classList.toggle('active', nav.dataset.panel === next); });
+                panels.forEach(function (panel) { panel.classList.toggle('active', panel.dataset.panel === next); });
+                current = next;
+                window.__projectronActivePanel = current;
+                window.dispatchEvent(new CustomEvent('projectron-panel-change', { detail: { panel: current } }));
+                if (updateHash) window.location.hash = next;
+            }
 
-                function getScalarType(element, name) {
-                    if (!element) return null;
-                    for (var i = 0; i < element.properties.length; i++) {
-                        var prop = element.properties[i];
-                        if (prop.kind === 'scalar' && prop.name === name) return prop.type;
-                    }
-                    return null;
-                }
+            navs.forEach(function (nav) {
+                nav.addEventListener('click', function () { activate(nav.dataset.panel, true); });
+            });
 
-                function toProjectronDataFromPLY(text) {
-                    var lines = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-                    if (!lines.length || lines[0].trim() !== 'ply') return null;
-
-                    var format = null;
-                    var headerEnd = -1;
-                    var currentElement = null;
-                    var elements = {};
-
-                    for (var i = 1; i < lines.length; i++) {
-                        var line = lines[i].trim();
-                        if (!line || line.indexOf('comment ') === 0 || line.indexOf('obj_info ') === 0) continue;
-                        if (line === 'end_header') {
-                            headerEnd = i;
-                            break;
-                        }
-                        var parts = line.split(/\s+/);
-                        if (parts[0] === 'format') {
-                            format = parts[1];
-                        } else if (parts[0] === 'element') {
-                            currentElement = {
-                                name: parts[1],
-                                count: parseInt(parts[2], 10),
-                                properties: []
-                            };
-                            elements[currentElement.name] = currentElement;
-                        } else if (parts[0] === 'property' && currentElement) {
-                            if (parts[1] === 'list') {
-                                currentElement.properties.push({
-                                    kind: 'list',
-                                    name: parts[4]
-                                });
-                            } else {
-                                currentElement.properties.push({
-                                    kind: 'scalar',
-                                    type: parts[1],
-                                    name: parts[2]
-                                });
-                            }
-                        }
-                    }
-
-                    if (format !== 'ascii' || headerEnd < 0 || !elements.vertex || !elements.vertex.count) {
-                        return null;
-                    }
-
-                    var state = { index: headerEnd + 1 };
-                    function nextTokens() {
-                        while (state.index < lines.length) {
-                            var raw = lines[state.index++].trim();
-                            if (!raw || raw.indexOf('comment ') === 0 || raw.indexOf('obj_info ') === 0) continue;
-                            return raw.split(/\s+/);
-                        }
-                        return null;
-                    }
-
-                    var vertexElement = elements.vertex;
-                    var vertexTypes = {
-                        red: getScalarType(vertexElement, 'red') || getScalarType(vertexElement, 'r'),
-                        green: getScalarType(vertexElement, 'green') || getScalarType(vertexElement, 'g'),
-                        blue: getScalarType(vertexElement, 'blue') || getScalarType(vertexElement, 'b'),
-                        alpha: getScalarType(vertexElement, 'alpha') || getScalarType(vertexElement, 'opacity') || getScalarType(vertexElement, 'a')
-                    };
-
-                    var vertices = [];
-                    for (i = 0; i < vertexElement.count; i++) {
-                        var vertexTokens = nextTokens();
-                        if (!vertexTokens) return null;
-                        var vertexRow = parseRow(vertexTokens, vertexElement.properties);
-                        if (Number.isNaN(vertexRow.x) || Number.isNaN(vertexRow.y) || Number.isNaN(vertexRow.z)) return null;
-
-                        var vertexRedRaw = pickDefined(vertexRow.red, vertexRow.r);
-                        var vertexGreenRaw = pickDefined(vertexRow.green, vertexRow.g);
-                        var vertexBlueRaw = pickDefined(vertexRow.blue, vertexRow.b);
-                        var vertexAlphaRaw = pickDefined(vertexRow.alpha, vertexRow.opacity, vertexRow.a);
-
-                        vertices.push({
-                            x: vertexRow.x,
-                            y: vertexRow.y,
-                            z: vertexRow.z,
-                            r: normalizeColor(vertexRedRaw, vertexTypes.red, 1),
-                            g: normalizeColor(vertexGreenRaw, vertexTypes.green, 1),
-                            b: normalizeColor(vertexBlueRaw, vertexTypes.blue, 1),
-                            a: normalizeColor(vertexAlphaRaw, vertexTypes.alpha, 1),
-                            hasR: vertexRedRaw !== undefined,
-                            hasG: vertexGreenRaw !== undefined,
-                            hasB: vertexBlueRaw !== undefined,
-                            hasA: vertexAlphaRaw !== undefined
-                        });
-                    }
-
-                    var faceElement = elements.face;
-                    var faceTypes = {
-                        red: getScalarType(faceElement, 'red') || getScalarType(faceElement, 'r'),
-                        green: getScalarType(faceElement, 'green') || getScalarType(faceElement, 'g'),
-                        blue: getScalarType(faceElement, 'blue') || getScalarType(faceElement, 'b'),
-                        alpha: getScalarType(faceElement, 'alpha') || getScalarType(faceElement, 'opacity') || getScalarType(faceElement, 'a')
-                    };
-
-                    var faces = [];
-                    if (faceElement && faceElement.count) {
-                        for (i = 0; i < faceElement.count; i++) {
-                            var faceTokens = nextTokens();
-                            if (!faceTokens) return null;
-                            var faceRow = parseRow(faceTokens, faceElement.properties);
-                            var indices = faceRow.vertex_indices || faceRow.vertex_index;
-                            if (!indices || indices.length < 3) continue;
-
-                            var faceRedRaw = pickDefined(faceRow.red, faceRow.r);
-                            var faceGreenRaw = pickDefined(faceRow.green, faceRow.g);
-                            var faceBlueRaw = pickDefined(faceRow.blue, faceRow.b);
-                            var faceAlphaRaw = pickDefined(faceRow.alpha, faceRow.opacity, faceRow.a);
-
-                            faces.push({
-                                indices: indices,
-                                r: normalizeColor(faceRedRaw, faceTypes.red, null),
-                                g: normalizeColor(faceGreenRaw, faceTypes.green, null),
-                                b: normalizeColor(faceBlueRaw, faceTypes.blue, null),
-                                a: normalizeColor(faceAlphaRaw, faceTypes.alpha, null),
-                                hasR: faceRedRaw !== undefined,
-                                hasG: faceGreenRaw !== undefined,
-                                hasB: faceBlueRaw !== undefined,
-                                hasA: faceAlphaRaw !== undefined
-                            });
-                        }
-                    } else {
-                        for (i = 0; i + 2 < vertices.length; i += 3) {
-                            faces.push({
-                                indices: [i, i + 1, i + 2],
-                                hasR: false,
-                                hasG: false,
-                                hasB: false,
-                                hasA: false
-                            });
-                        }
-                    }
-
-                    if (!faces.length) return null;
-
-                    var vertArr = [];
-                    var colArr = [];
-
-                    function appendTri(aIndex, bIndex, cIndex, face) {
-                        [aIndex, bIndex, cIndex].forEach(function (vIndex) {
-                            var vertex = vertices[vIndex];
-                            if (!vertex) throw new Error('Missing vertex index ' + vIndex);
-                            vertArr.push(vertex.x, vertex.y, vertex.z);
-                            colArr.push(
-                                vertex.hasR ? vertex.r : face.hasR ? face.r : 1,
-                                vertex.hasG ? vertex.g : face.hasG ? face.g : 1,
-                                vertex.hasB ? vertex.b : face.hasB ? face.b : 1,
-                                vertex.hasA ? vertex.a : face.hasA ? face.a : 1
-                            );
-                        });
-                    }
-
-                    try {
-                        faces.forEach(function (face) {
-                            for (var i = 1; i + 1 < face.indices.length; i++) {
-                                appendTri(face.indices[0], face.indices[i], face.indices[i + 1], face);
-                            }
-                        });
-                    } catch (err) {
-                        console.warn('PLY import failed:', err.message);
-                        return null;
-                    }
-
-                    if (!vertArr.length || vertArr.length / 3 !== colArr.length / 4) return null;
-
-                    return 'vert-xyz,' +
-                        vertArr.map(function (n) { return n.toFixed(8); }).join(',') +
-                        ',\ncol-rgba,' +
-                        colArr.map(function (n) { return n.toFixed(5); }).join(',');
-                }
-
-                importBtn.addEventListener('click', function () {
-                    plyInput.value = '';
-                    plyInput.click();
+            pauseButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    setPaused(!paused.checked);
                 });
+            });
 
-                plyInput.addEventListener('change', function (ev) {
-                    var file = ev.target.files && ev.target.files[0];
-                    if (!file) return;
+            if (paused) paused.addEventListener('change', syncPauseLabel);
+            window.addEventListener('hashchange', function () { activate(panelFromHash(), false); });
 
-                    var reader = new FileReader();
-                    reader.onloadend = function (loadEvent) {
-                        var text = loadEvent.target.result || '';
-                        var imported = false;
-
-                        if (window.p && typeof window.p.importPLY === 'function') {
-                            imported = !!window.p.importPLY(text);
-                        } else if (window.p && typeof window.p.importData === 'function') {
-                            var data = toProjectronDataFromPLY(text);
-                            if (data) imported = !!window.p.importData(data);
-                        }
-
-                        if (imported && dataBox) {
-                            dataBox.value = '';
-                        } else if (!imported) {
-                            console.warn('PLY import failed: unsupported file or invalid data');
-                        }
-                    };
-                    reader.readAsText(file);
-                });
-            })();
-        </script>
-
-    </body>
-
+            activate(panelFromHash(), false);
+            syncPauseLabel();
+        })();
+    </script>
+</body>
 </html>
